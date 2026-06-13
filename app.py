@@ -8,7 +8,8 @@ from flask import Flask
 
 # ================= הגדרות =================
 YEMOT_TOKEN = "033060711:219219" 
-EXTENSION_PATH = "ivr2:5"  # נתיב מדויק ונקי לשלוחה שלך
+# לפי הפורום שמצאת, השילוב המדויק ביותר הוא:
+EXTENSION_PATH = "ivr2:/5"  
 API_URL = "https://haredim-jerusalem.co.il/wp-json/wp/v2/posts"
 CHECK_INTERVAL = 300 # בודק כל 5 דקות
 
@@ -18,18 +19,34 @@ app = Flask(__name__)
 def home():
     return "API Bot is running!"
 
-# --- פונקציות העלאה ---
-def upload_to_yemot(file_path, file_name):
+# --- 1. פונקציה להעלאת שמע (MP3) ---
+def upload_audio_to_yemot(file_path, file_name):
     url = "https://www.call2all.co.il/ym/api/UploadFile"
-    # מחבר את הנתיב עם שם הקובץ (למשל: ivr2:5/63491.tts)
     full_path = f"{EXTENSION_PATH}/{file_name}"
     params = {"token": YEMOT_TOKEN, "path": full_path}
     try:
         with open(file_path, 'rb') as f:
             response = requests.post(url, data=params, files={'file': f})
-        print(f"[+] תשובת השרת של ימות המשיח: {response.text}")
+        print(f"[+] תשובת השרת (העלאת שמע): {response.text}")
     except Exception as e:
-        print(f"[-] שגיאה בהעלאה: {e}")
+        print(f"[-] שגיאה בהעלאת שמע: {e}")
+
+# --- 2. פונקציה להעלאת טקסט (TTS) בעזרת ה-API הייעודי מהפורום! ---
+def upload_text_to_yemot(text_content, file_name):
+    # כתובת API שונה לגמרי, מיועדת רק לטקסטים
+    url = "https://www.call2all.co.il/ym/api/UploadTextFile" 
+    full_path = f"{EXTENSION_PATH}/{file_name}"
+    # שימוש בפרמטרים המדויקים מהקוד שמצאת: what ו-contents
+    params = {
+        "token": YEMOT_TOKEN,
+        "what": full_path,
+        "contents": text_content
+    }
+    try:
+        response = requests.post(url, data=params)
+        print(f"[+] תשובת השרת (העלאת טקסט): {response.text}")
+    except Exception as e:
+        print(f"[-] שגיאה בהעלאת טקסט: {e}")
 
 def process_and_upload(post_id, text, video_url=None):
     print(f"[*] מעבד פוסט {post_id}...")
@@ -43,17 +60,18 @@ def process_and_upload(post_id, text, video_url=None):
                     if chunk: f.write(chunk)
             with VideoFileClip(video_filename) as clip:
                 clip.audio.write_audiofile(audio_filename, logger=None)
-            upload_to_yemot(audio_filename, audio_filename)
+            
+            # שולח לפונקציית האודיו
+            upload_audio_to_yemot(audio_filename, audio_filename)
+            
             if os.path.exists(video_filename): os.remove(video_filename)
             if os.path.exists(audio_filename): os.remove(audio_filename)
         except Exception as e:
             print(f"שגיאה בעיבוד וידאו: {e}")
     else:
-        # התיקון הקריטי: יצירת קובץ עם סיומת .tts במקום .txt כדי שימות המשיח יאשרו
+        # שולח ישירות לפונקציית הטקסט המהירה!
         text_filename = f"{post_id}.tts"
-        with open(text_filename, 'w', encoding='utf-8') as f: f.write(text)
-        upload_to_yemot(text_filename, text_filename)
-        if os.path.exists(text_filename): os.remove(text_filename)
+        upload_text_to_yemot(text, text_filename)
 
 # --- לולאת הבוט (מבוססת API) ---
 def run_bot():
