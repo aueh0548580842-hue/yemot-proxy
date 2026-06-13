@@ -8,7 +8,7 @@ from flask import Flask
 
 # ================= הגדרות =================
 YEMOT_TOKEN = "033060711:219219" 
-EXTENSION_PATH = "ivr2:5/"  
+EXTENSION_PATH = "ivr2:5"  # נתיב מדויק ונקי לשלוחה שלך
 API_URL = "https://haredim-jerusalem.co.il/wp-json/wp/v2/posts"
 CHECK_INTERVAL = 300 # בודק כל 5 דקות
 
@@ -21,8 +21,8 @@ def home():
 # --- פונקציות העלאה ---
 def upload_to_yemot(file_path, file_name):
     url = "https://www.call2all.co.il/ym/api/UploadFile"
-    # מחבר את הנתיב עם שם הקובץ: ivr2:5/filename.txt
-    full_path = f"{EXTENSION_PATH}{file_name}"
+    # מחבר את הנתיב עם שם הקובץ (למשל: ivr2:5/63491.tts)
+    full_path = f"{EXTENSION_PATH}/{file_name}"
     params = {"token": YEMOT_TOKEN, "path": full_path}
     try:
         with open(file_path, 'rb') as f:
@@ -49,7 +49,8 @@ def process_and_upload(post_id, text, video_url=None):
         except Exception as e:
             print(f"שגיאה בעיבוד וידאו: {e}")
     else:
-        text_filename = f"{post_id}.txt"
+        # התיקון הקריטי: יצירת קובץ עם סיומת .tts במקום .txt כדי שימות המשיח יאשרו
+        text_filename = f"{post_id}.tts"
         with open(text_filename, 'w', encoding='utf-8') as f: f.write(text)
         upload_to_yemot(text_filename, text_filename)
         if os.path.exists(text_filename): os.remove(text_filename)
